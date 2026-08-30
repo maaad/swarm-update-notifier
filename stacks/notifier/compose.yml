@@ -1,0 +1,52 @@
+services:
+  swarm-update-notifier:
+    image: ghcr.io/maaad/swarm-update-notifier:latest
+
+    environment:
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID}"
+      # Optional Telegram forum topic / message thread:
+      TELEGRAM_THREAD_ID: "${TELEGRAM_THREAD_ID:-}"
+
+      # Empty = notify about all Swarm services.
+      # Recommended opt-in mode:
+      NOTIFY_LABEL: "swarm.notify=true"
+
+      # Ignore scale/config/label changes; notify only when service image changes.
+      NOTIFY_IMAGE_ONLY: "true"
+
+      UPDATE_TIMEOUT: "900"
+      POLL_INTERVAL: "2"
+      LOG_LEVEL: "INFO"
+
+    secrets:
+      - telegram_bot_token
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - notifier_state:/data
+
+    deploy:
+      replicas: 1
+
+      placement:
+        constraints:
+          - node.role == manager
+
+      restart_policy:
+        condition: any
+        delay: 5s
+
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+
+      labels:
+        swarm.notify: "true"
+
+secrets:
+  telegram_bot_token:
+    external: true
+
+volumes:
+  notifier_state:
